@@ -1,6 +1,7 @@
 // Copyright © 2018 650 Industries. All rights reserved.
 
 #import <MessageUI/MessageUI.h>
+#import <Messages/Messages.h>
 #import <EXSMS/EXSMSModule.h>
 #import <UMCore/UMUtilities.h>
 #import <UMPermissionsInterface/UMPermissionsInterface.h>
@@ -57,6 +58,98 @@ UM_EXPORT_METHOD_AS(sendSMSAsync,
   messageComposeViewController.messageComposeDelegate = self;
   messageComposeViewController.recipients = addresses;
   messageComposeViewController.body = message;
+
+  UM_WEAKIFY(self);
+  [UMUtilities performSynchronouslyOnMainThread:^{
+    UM_ENSURE_STRONGIFY(self);
+    [self.utils.currentViewController presentViewController:messageComposeViewController animated:YES completion:nil];
+  }];
+}
+
+UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
+                    sendSMS:(NSArray<NSString *> *)addresses
+                    message:(NSString *)message
+                    imessageAttachment:(NSDictionary *)imessageAttachment
+                   resolver:(UMPromiseResolveBlock)resolve
+                   rejecter:(UMPromiseRejectBlock)reject)
+{
+  if (![MFMessageComposeViewController canSendText]) {
+    reject(@"E_SMS_UNAVAILABLE", @"SMS service not available", nil);
+    return;
+  }
+
+  if (_resolve != nil || _reject != nil) {
+    reject(@"E_SMS_SENDING_IN_PROGRESS", @"Different SMS sending in progress. Await the old request and then try again.", nil);
+    return;
+  }
+
+  // Create main imessage 
+  MSMessage *iMessage = [[MSMessage alloc] init];
+
+  // Create imessage layout template
+  MSMessageTemplateLayout *iMessageLayout = [[MSMessageTemplateLayout alloc] init];
+
+  // Create url components 
+  NSURLComponents *urlComponents = [[NSURLComponents alloc] init];
+
+  // Create query items array 
+  NSMutableArray<NSURLQueryItem *> *queryItems = [[NSMutableArray alloc]init];
+
+  // get inputs 
+  NSDictionary<NSString*, NSString*> *urlQueryItems = imessageAttachment[@"urlQueryItems"];
+  NSDictionary<NSString*, NSString*> *layoutParams = imessageAttachment[@"layoutParams"];
+
+  // Add all the url params to the query items array
+  for (id key in urlQueryItems) {
+      NSURLQueryItem *queryItem = [[NSURLQueryItem alloc]initWithName: key value: urlQueryItems[key]];
+      [queryItems addObject: queryItem];
+  }
+
+  // assign the query items array to the url component
+  urlComponents.queryItems = queryItems;
+
+  for (id key in layoutParams) {
+    if ([key isEqual: @"mediaFileUrl"]) {
+//      NSURL *mediaFileUrl = [[NSURL alloc] initWithString: layoutParams[key]];
+      UIImage *image = [UIImage imageWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:layoutParams[key]]]];
+
+      [iMessageLayout setImage: image];
+    } else if ([key isEqual: @"caption"]) {
+      [iMessageLayout setCaption: layoutParams[key]];
+    } else if ([key isEqual: @"imageTitle"]) {
+      [iMessageLayout setImageTitle: layoutParams[key]];
+    } else if ([key isEqual: @"imageSubtitle"]) {
+      [iMessageLayout setImageSubtitle: layoutParams[key]];
+    } else if ([key isEqual: @"subcaption"]) {
+      [iMessageLayout setSubcaption: layoutParams[key]];
+    } else if ([key isEqual: @"trailingCaption"]) {
+      [iMessageLayout setTrailingCaption: layoutParams[key]];
+    } else if ([key isEqual: @"trailingSubcaption"]) {
+      [iMessageLayout setTrailingSubcaption: layoutParams[key]];
+    }
+  }
+
+  // NSString *stringURL = [NSString stringWithFormat:@"%@%@",NSTemporaryDirectory(),@"temp.jpg"];
+
+  // NSURL *urlImage = [[NSURL alloc]initFileURLWithPath:stringURL];
+
+  // NSData *dataImage = UIImageJPEGRepresentation([self imageWithView:self.myViewBgImageConLogoDaSalvare], 0.0);
+  //       [dataImage writeToURL:urlImage atomically:true];
+
+  // Add layout and url params to main imessage 
+  iMessage.layout = iMessageLayout;  
+  iMessage.URL = urlComponents.URL;
+
+  _resolve = resolve;
+  _reject = reject;
+  
+  MFMessageComposeViewController *messageComposeViewController = [[MFMessageComposeViewController alloc] init];
+  messageComposeViewController.messageComposeDelegate = self;
+  messageComposeViewController.recipients = addresses;
+
+  messageComposeViewController.body = message;
+
+  messageComposeViewController.message = iMessage;
 
   UM_WEAKIFY(self);
   [UMUtilities performSynchronouslyOnMainThread:^{
