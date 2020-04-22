@@ -89,6 +89,8 @@ UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
   // Create imessage layout template
   MSMessageTemplateLayout *iMessageLayout = [[MSMessageTemplateLayout alloc] init];
 
+  // Create imessage live layout template
+
   // Create url components 
   NSURLComponents *urlComponents = [[NSURLComponents alloc] init];
 
@@ -136,9 +138,12 @@ UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
   // NSData *dataImage = UIImageJPEGRepresentation([self imageWithView:self.myViewBgImageConLogoDaSalvare], 0.0);
   //       [dataImage writeToURL:urlImage atomically:true];
 
-  // Add layout and url params to main imessage 
-  iMessage.layout = iMessageLayout;  
+  // Add layout and url params to main imessage
   iMessage.URL = urlComponents.URL;
+
+  MSMessageTemplateLayout *iMessageLiveLayout = [[MSMessageLiveLayout alloc]initWithAlternateLayout: iMessageLayout];
+
+  iMessage.layout = iMessageLiveLayout;  
 
   _resolve = resolve;
   _reject = reject;
