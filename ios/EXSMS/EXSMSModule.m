@@ -1,30 +1,22 @@
 // Copyright © 2018 650 Industries. All rights reserved.
-
 #import <MessageUI/MessageUI.h>
 #import <Messages/Messages.h>
 #import <EXSMS/EXSMSModule.h>
 #import <UMCore/UMUtilities.h>
 #import <UMPermissionsInterface/UMPermissionsInterface.h>
-
 @interface EXSMSModule () <MFMessageComposeViewControllerDelegate>
-
 @property (nonatomic, weak) id<UMPermissionsInterface> permissionsManager;
 @property (nonatomic, weak) id<UMUtilitiesInterface> utils;
 @property (nonatomic, strong) UMPromiseResolveBlock resolve;
 @property (nonatomic, strong) UMPromiseRejectBlock reject;
-
 @end
-
 @implementation EXSMSModule
-
 UM_EXPORT_MODULE(ExpoSMS);
-
 - (void)setModuleRegistry:(UMModuleRegistry *)moduleRegistry
 {
   _permissionsManager = [moduleRegistry getModuleImplementingProtocol:@protocol(UMPermissionsInterface)];
   _utils = [moduleRegistry getModuleImplementingProtocol:@protocol(UMUtilitiesInterface)];
 }
-
 UM_EXPORT_METHOD_AS(isAvailableAsync,
                     isAvailable:(UMPromiseResolveBlock)resolve
                        rejecter:(UMPromiseRejectBlock)reject)
@@ -34,7 +26,6 @@ UM_EXPORT_METHOD_AS(isAvailableAsync,
     resolve(@(canOpenURL));
   });
 }
-
 UM_EXPORT_METHOD_AS(sendSMSAsync,
                     sendSMS:(NSArray<NSString *> *)addresses
                     message:(NSString *)message
@@ -45,27 +36,22 @@ UM_EXPORT_METHOD_AS(sendSMSAsync,
     reject(@"E_SMS_UNAVAILABLE", @"SMS service not available", nil);
     return;
   }
-
   if (_resolve != nil || _reject != nil) {
     reject(@"E_SMS_SENDING_IN_PROGRESS", @"Different SMS sending in progress. Await the old request and then try again.", nil);
     return;
   }
-
   _resolve = resolve;
   _reject = reject;
-  
   MFMessageComposeViewController *messageComposeViewController = [[MFMessageComposeViewController alloc] init];
   messageComposeViewController.messageComposeDelegate = self;
   // messageComposeViewController.recipients = addresses;
   messageComposeViewController.body = message;
-
   UM_WEAKIFY(self);
   [UMUtilities performSynchronouslyOnMainThread:^{
     UM_ENSURE_STRONGIFY(self);
     [self.utils.currentViewController presentViewController:messageComposeViewController animated:YES completion:nil];
   }];
 }
-
 UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
                     sendSMS:(NSArray<NSString *> *)addresses
                     message:(NSString *)message
@@ -77,44 +63,34 @@ UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
     reject(@"E_SMS_UNAVAILABLE", @"SMS service not available", nil);
     return;
   }
-
   if (_resolve != nil || _reject != nil) {
     reject(@"E_SMS_SENDING_IN_PROGRESS", @"Different SMS sending in progress. Await the old request and then try again.", nil);
     return;
   }
-
-  // Create main imessage 
-  MSMessage *iMessage = [[MSMessage alloc] init];
-
+  MSSession *session = [[MSSession alloc] init];
+  // Create main imessage
+  MSMessage *iMessage = [[MSMessage alloc] initWithSession: session];
   // Create imessage layout template
   MSMessageTemplateLayout *iMessageLayout = [[MSMessageTemplateLayout alloc] init];
-
   // Create imessage live layout template
-
   // Create url components 
   NSURLComponents *urlComponents = [[NSURLComponents alloc] init];
-
   // Create query items array 
   NSMutableArray<NSURLQueryItem *> *queryItems = [[NSMutableArray alloc]init];
-
   // get inputs 
   NSDictionary<NSString*, NSString*> *urlQueryItems = imessageAttachment[@"urlQueryItems"];
   NSDictionary<NSString*, NSString*> *layoutParams = imessageAttachment[@"layoutParams"];
-
   // Add all the url params to the query items array
   for (id key in urlQueryItems) {
       NSURLQueryItem *queryItem = [[NSURLQueryItem alloc]initWithName: key value: urlQueryItems[key]];
       [queryItems addObject: queryItem];
   }
-
   // assign the query items array to the url component
   urlComponents.queryItems = queryItems;
-
   for (id key in layoutParams) {
     if ([key isEqual: @"mediaFileUrl"]) {
 //      NSURL *mediaFileUrl = [[NSURL alloc] initWithString: layoutParams[key]];
       UIImage *image = [UIImage imageWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:layoutParams[key]]]];
-
       [iMessageLayout setImage: image];
     } else if ([key isEqual: @"caption"]) {
       [iMessageLayout setCaption: layoutParams[key]];
@@ -130,39 +106,27 @@ UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
       [iMessageLayout setTrailingSubcaption: layoutParams[key]];
     }
   }
-
   // NSString *stringURL = [NSString stringWithFormat:@"%@%@",NSTemporaryDirectory(),@"temp.jpg"];
-
   // NSURL *urlImage = [[NSURL alloc]initFileURLWithPath:stringURL];
-
   // NSData *dataImage = UIImageJPEGRepresentation([self imageWithView:self.myViewBgImageConLogoDaSalvare], 0.0);
   //       [dataImage writeToURL:urlImage atomically:true];
-
   // Add layout and url params to main imessage
   iMessage.URL = urlComponents.URL;
-
   MSMessageTemplateLayout *iMessageLiveLayout = [[MSMessageLiveLayout alloc]initWithAlternateLayout: iMessageLayout];
-
   iMessage.layout = iMessageLiveLayout;  
-
   _resolve = resolve;
   _reject = reject;
-  
   MFMessageComposeViewController *messageComposeViewController = [[MFMessageComposeViewController alloc] init];
   messageComposeViewController.messageComposeDelegate = self;
   // messageComposeViewController.recipients = addresses;
-
   messageComposeViewController.body = message;
-
   messageComposeViewController.message = iMessage;
-
   UM_WEAKIFY(self);
   [UMUtilities performSynchronouslyOnMainThread:^{
     UM_ENSURE_STRONGIFY(self);
     [self.utils.currentViewController presentViewController:messageComposeViewController animated:YES completion:nil];
   }];
 }
-
 - (void)messageComposeViewController:(MFMessageComposeViewController *)controller
                  didFinishWithResult:(MessageComposeResult)result
 {
@@ -172,15 +136,12 @@ UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
     case MessageComposeResultCancelled:
       resolveData = @{@"result": @"cancelled"};
       break;
-
     case MessageComposeResultFailed:
       rejectMessage = @"SMS message sending failed";
       break;
-
     case MessageComposeResultSent:
       resolveData = @{@"result": @"sent"};
       break;
-
     default:
       rejectMessage = @"SMS message sending failed with unknown error";
       break;
@@ -197,5 +158,4 @@ UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
     self->_resolve = nil;
   }];
 }
-
 @end
