@@ -12,11 +12,21 @@
 @end
 @implementation EXSMSModule
 UM_EXPORT_MODULE(ExpoSMS);
+
+- (dispatch_queue_t)methodQueue
+{
+  // Everything in this module uses `MFMessageComposeViewController` which is a subclass of UIViewController,
+  // so everything should be called from main thread.
+  return dispatch_get_main_queue();
+}
+
 - (void)setModuleRegistry:(UMModuleRegistry *)moduleRegistry
 {
   _permissionsManager = [moduleRegistry getModuleImplementingProtocol:@protocol(UMPermissionsInterface)];
   _utils = [moduleRegistry getModuleImplementingProtocol:@protocol(UMUtilitiesInterface)];
 }
+
+
 UM_EXPORT_METHOD_AS(isAvailableAsync,
                     isAvailable:(UMPromiseResolveBlock)resolve
                        rejecter:(UMPromiseRejectBlock)reject)
