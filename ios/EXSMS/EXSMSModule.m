@@ -118,7 +118,9 @@ UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
   _reject = reject;
   MFMessageComposeViewController *messageComposeViewController = [[MFMessageComposeViewController alloc] init];
   messageComposeViewController.messageComposeDelegate = self;
-  // messageComposeViewController.recipients = addresses;
+  if ([addresses[0] length] > 0) {
+    messageComposeViewController.recipients = addresses;
+  }
   messageComposeViewController.body = message;
   messageComposeViewController.message = iMessage;
   UM_WEAKIFY(self);
