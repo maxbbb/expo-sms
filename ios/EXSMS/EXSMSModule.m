@@ -90,6 +90,8 @@ UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
   // get inputs 
   NSDictionary<NSString*, NSString*> *urlQueryItems = imessageAttachment[@"urlQueryItems"];
   NSDictionary<NSString*, NSString*> *layoutParams = imessageAttachment[@"layoutParams"];
+  NSString *summaryText = imessageAttachment[@"summaryText"];
+
   // Add all the url params to the query items array
   for (id key in urlQueryItems) {
       NSURLQueryItem *queryItem = [[NSURLQueryItem alloc]initWithName: key value: urlQueryItems[key]];
@@ -122,8 +124,13 @@ UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
   //       [dataImage writeToURL:urlImage atomically:true];
   // Add layout and url params to main imessage
   iMessage.URL = urlComponents.URL;
+
   MSMessageTemplateLayout *iMessageLiveLayout = [[MSMessageLiveLayout alloc]initWithAlternateLayout: iMessageLayout];
+
   iMessage.layout = iMessageLiveLayout;  
+
+  iMessage.summaryText = summaryText;  
+
   _resolve = resolve;
   _reject = reject;
   MFMessageComposeViewController *messageComposeViewController = [[MFMessageComposeViewController alloc] init];
