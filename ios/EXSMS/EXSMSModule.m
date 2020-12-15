@@ -140,8 +140,14 @@ UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
   }
   messageComposeViewController.body = message;
   messageComposeViewController.message = iMessage;
-  [self.utils.currentViewController presentViewController:messageComposeViewController animated:YES completion:nil];
+
+  UM_WEAKIFY(self);
+  [UMUtilities performSynchronouslyOnMainThread:^{
+    UM_ENSURE_STRONGIFY(self);
+    [self.utils.currentViewController presentViewController:messageComposeViewController animated:YES completion:nil];
+  }];
 }
+
 - (void)messageComposeViewController:(MFMessageComposeViewController *)controller
                  didFinishWithResult:(MessageComposeResult)result
 {
