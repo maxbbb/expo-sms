@@ -1,6 +1,6 @@
 {
   "name": "expo-sms",
-  "version": "10.1.0",
+  "version": "10.0.3",
   "description": "Provides access to the system's UI/app for sending SMS messages.",
   "main": "build/SMS.js",
   "types": "build/SMS.d.ts",
@@ -31,13 +31,13 @@
   "license": "MIT",
   "homepage": "https://docs.expo.dev/versions/latest/sdk/sms/",
   "jest": {
-    "preset": "expo-module-scripts"
+    "preset": "expo-module-scripts/ios"
   },
-  "dependencies": {},
+  "dependencies": {
+    "expo-modules-core": "~0.4.4"
+  },
   "devDependencies": {
     "expo-module-scripts": "^2.0.0"
   },
-  "peerDependencies": {
-    "expo": "*"
-  }
+  "gitHead": "4fa0497a180ae707fa860cb03858630ab7af19f4"
 }
