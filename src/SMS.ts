@@ -1,8 +1,8 @@
-import { Platform } from '@unimodules/core';
-import ExpoSMS from './ExpoSMS';
+import { UnavailabilityError, Platform } from "expo-modules-core";
+import ExpoSMS from "./ExpoSMS";
 
 type SMSResponse = {
-  result: 'unknown' | 'sent' | 'cancelled';
+  result: "unknown" | "sent" | "cancelled";
 };
 
 type MSMessageLayout = {
@@ -13,7 +13,7 @@ type MSMessageLayout = {
   subcaption?: string;
   trailingCaption?: string;
   trailingSubcaption?: string;
-}
+};
 
 type URLQueryItems = any;
 
@@ -26,7 +26,7 @@ type URLQueryItems = any;
 type MSMessageInfo = {
   urlQueryItems: any;
   layoutParams: MSMessageLayout;
-}
+};
 
 export async function sendSMSAsync(
   addresses: string | string[],
@@ -34,7 +34,7 @@ export async function sendSMSAsync(
 ): Promise<SMSResponse> {
   const finalAddresses = Array.isArray(addresses) ? addresses : [addresses];
   if (!ExpoSMS.sendSMSAsync) {
-    throw new Error(`SMS.sendSMSAsync is not supported on ${Platform.OS}`);
+    throw new UnavailabilityError("expo-sms", "sendSMSAsync");
   }
   return ExpoSMS.sendSMSAsync(finalAddresses, message);
 }
@@ -46,9 +46,13 @@ export async function sendSMSWithiMessageAsync(
 ): Promise<SMSResponse> {
   const finalAddresses = Array.isArray(addresses) ? addresses : [addresses];
   if (!ExpoSMS.sendSMSAsync) {
-    throw new Error(`SMS.sendSMSAsync is not supported on ${Platform.OS}`);
+    throw new UnavailabilityError("expo-sms", "sendSMSAsync");
   }
-  return ExpoSMS.sendSMSWithiMessageAsync(finalAddresses, message, imessageInfo);
+  return ExpoSMS.sendSMSWithiMessageAsync(
+    finalAddresses,
+    message,
+    imessageInfo
+  );
 }
 
 export async function isAvailableAsync(): Promise<boolean> {

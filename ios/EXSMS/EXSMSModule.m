@@ -2,16 +2,22 @@
 #import <MessageUI/MessageUI.h>
 #import <Messages/Messages.h>
 #import <EXSMS/EXSMSModule.h>
-#import <UMCore/UMUtilities.h>
-#import <UMPermissionsInterface/UMPermissionsInterface.h>
+#if SD_MAC
+#import <CoreServices/CoreServices.h>
+#else
+#import <MobileCoreServices/MobileCoreServices.h>
 @interface EXSMSModule () <MFMessageComposeViewControllerDelegate>
-@property (nonatomic, weak) id<UMPermissionsInterface> permissionsManager;
-@property (nonatomic, weak) id<UMUtilitiesInterface> utils;
-@property (nonatomic, strong) UMPromiseResolveBlock resolve;
-@property (nonatomic, strong) UMPromiseRejectBlock reject;
+
+@property (nonatomic, weak) id<EXUtilitiesInterface> utils;
+@property (nonatomic, strong) EXPromiseResolveBlock resolve;
+@property (nonatomic, strong) EXPromiseRejectBlock reject;
+
+
 @end
+
 @implementation EXSMSModule
-UM_EXPORT_MODULE(ExpoSMS);
+
+EX_EXPORT_MODULE(ExpoSMS);
 
 - (dispatch_queue_t)methodQueue
 {
@@ -20,28 +26,26 @@ UM_EXPORT_MODULE(ExpoSMS);
   return dispatch_get_main_queue();
 }
 
-- (void)setModuleRegistry:(UMModuleRegistry *)moduleRegistry
+- (void)setModuleRegistry:(EXModuleRegistry *)moduleRegistry
 {
-  _permissionsManager = [moduleRegistry getModuleImplementingProtocol:@protocol(UMPermissionsInterface)];
-  _utils = [moduleRegistry getModuleImplementingProtocol:@protocol(UMUtilitiesInterface)];
+  _utils = [moduleRegistry getModuleImplementingProtocol:@protocol(EXUtilitiesInterface)];
 }
 
 
-UM_EXPORT_METHOD_AS(isAvailableAsync,
-                    isAvailable:(UMPromiseResolveBlock)resolve
-                       rejecter:(UMPromiseRejectBlock)reject)
+EX_EXPORT_METHOD_AS(isAvailableAsync,
+                    isAvailable:(EXPromiseResolveBlock)resolve
+                    rejecter:(EXPromiseRejectBlock)reject)
 {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    BOOL canOpenURL = [[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"sms:"]];
-    resolve(@(canOpenURL));
-  });
+  resolve(@([MFMessageComposeViewController canSendText]));
 }
-UM_EXPORT_METHOD_AS(sendSMSAsync,
+
+EX_EXPORT_METHOD_AS(sendSMSAsync,
                     sendSMS:(NSArray<NSString *> *)addresses
                     message:(NSString *)message
-                   resolver:(UMPromiseResolveBlock)resolve
-                   rejecter:(UMPromiseRejectBlock)reject)
+                   resolver:(EXPromiseResolveBlock)resolve
+                   rejecter:(EXPromiseRejectBlock)reject)
 {
+
   if (![MFMessageComposeViewController canSendText]) {
     reject(@"E_SMS_UNAVAILABLE", @"SMS service not available", nil);
     return;
@@ -50,24 +54,25 @@ UM_EXPORT_METHOD_AS(sendSMSAsync,
     reject(@"E_SMS_SENDING_IN_PROGRESS", @"Different SMS sending in progress. Await the old request and then try again.", nil);
     return;
   }
+
   _resolve = resolve;
   _reject = reject;
+
   MFMessageComposeViewController *messageComposeViewController = [[MFMessageComposeViewController alloc] init];
   messageComposeViewController.messageComposeDelegate = self;
   // messageComposeViewController.recipients = addresses;
   messageComposeViewController.body = message;
-  UM_WEAKIFY(self);
-  [UMUtilities performSynchronouslyOnMainThread:^{
-    UM_ENSURE_STRONGIFY(self);
-    [self.utils.currentViewController presentViewController:messageComposeViewController animated:YES completion:nil];
-  }];
+  
+  [self.utils.currentViewController presentViewController:messageComposeViewController animated:YES completion:nil];
+
 }
-UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
+
+EX_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
                     sendSMS:(NSArray<NSString *> *)addresses
                     message:(NSString *)message
                     imessageAttachment:(NSDictionary *)imessageAttachment
-                   resolver:(UMPromiseResolveBlock)resolve
-                   rejecter:(UMPromiseRejectBlock)reject)
+                   resolver:(EXPromiseResolveBlock)resolve
+                   rejecter:(EXPromiseRejectBlock)reject)
 {
   if (![MFMessageComposeViewController canSendText]) {
     reject(@"E_SMS_UNAVAILABLE", @"SMS service not available", nil);
@@ -118,10 +123,7 @@ UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
       [iMessageLayout setTrailingSubcaption: layoutParams[key]];
     }
   }
-  // NSString *stringURL = [NSString stringWithFormat:@"%@%@",NSTemporaryDirectory(),@"temp.jpg"];
-  // NSURL *urlImage = [[NSURL alloc]initFileURLWithPath:stringURL];
-  // NSData *dataImage = UIImageJPEGRepresentation([self imageWithView:self.myViewBgImageConLogoDaSalvare], 0.0);
-  //       [dataImage writeToURL:urlImage atomically:true];
+
   // Add layout and url params to main imessage
   iMessage.URL = urlComponents.URL;
 
@@ -141,18 +143,18 @@ UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
   messageComposeViewController.body = message;
   messageComposeViewController.message = iMessage;
 
-  UM_WEAKIFY(self);
-  [UMUtilities performSynchronouslyOnMainThread:^{
-    UM_ENSURE_STRONGIFY(self);
-    [self.utils.currentViewController presentViewController:messageComposeViewController animated:YES completion:nil];
-  }];
+  [self.utils.currentViewController presentViewController:messageComposeViewController animated:YES completion:nil];
+
 }
 
 - (void)messageComposeViewController:(MFMessageComposeViewController *)controller
                  didFinishWithResult:(MessageComposeResult)result
 {
+
   NSDictionary *resolveData;
+
   NSString *rejectMessage;
+
   switch (result) {
     case MessageComposeResultCancelled:
       resolveData = @{@"result": @"cancelled"};
@@ -167,9 +169,10 @@ UM_EXPORT_METHOD_AS(sendSMSWithiMessageAsync,
       rejectMessage = @"SMS message sending failed with unknown error";
       break;
   }
-  UM_WEAKIFY(self);
+
+  EX_WEAKIFY(self);
   [controller dismissViewControllerAnimated:YES completion:^{
-    UM_ENSURE_STRONGIFY(self);
+    EX_ENSURE_STRONGIFY(self);
     if (rejectMessage) {
       self->_reject(@"E_SMS_SENDING_FAILED", rejectMessage, nil);
     } else {
