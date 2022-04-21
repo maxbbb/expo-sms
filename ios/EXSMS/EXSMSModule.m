@@ -2,6 +2,7 @@
 #import <MessageUI/MessageUI.h>
 #import <Messages/Messages.h>
 #import <EXSMS/EXSMSModule.h>
+#import <ExpoModulesCore/EXUtilities.h>
 #if SD_MAC
 #import <CoreServices/CoreServices.h>
 #else
